@@ -796,3 +796,29 @@ mark.search-hl {
   border-radius: 2px;
 }
 .bulk-bar[hidden] { display: none !important; }
+
+/* deep search */
+#deep-search.on {
+  background: #b18bff;
+  color: #1a1a2e;
+}
+.search-snippet {
+  font-size: 11px;
+  color: #aab4c8;
+  padding: 4px 6px 0 6px;
+  line-height: 1.5;
+  border-top: 1px dotted #2c3144;
+  margin-top: 4px;
+}
+.snippet-tag {
+  display: inline-block;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #2a3142;
+  color: #b18bff;
+  margin-right: 4px;
+}
+.snippet-tag.user { background: #2d3a5a; color: #93b8ff; }
+.snippet-tag.reasoning { background: #3a2d4a; color: #c79bff; }

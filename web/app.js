@@ -25,6 +25,8 @@ const state = {
   selectMode: false,
   selectedSids: new Set(),
   selectedAlertIds: new Set(),
+  deepSearch: false,
+  deepResults: null,   // {query, results:[…]} when active
 };
 
 const $ = (id) => document.getElementById(id);
@@ -347,6 +349,10 @@ function passSearch(s) {
 }
 
 function renderSessionList() {
+  if (state.deepSearch && state.deepResults) {
+    renderDeepResults();
+    return;
+  }
   const root = $("session-list");
   root.innerHTML = "";
   const items = state.sessions.filter(passSearch);
@@ -430,6 +436,77 @@ function renderSessionList() {
   }
 }
 
+// ---------------- Deep search (cross-session) ----------------
+let _deepSearchT = null;
+function scheduleDeepSearch() {
+  clearTimeout(_deepSearchT);
+  _deepSearchT = setTimeout(runDeepSearch, 400);
+}
+async function runDeepSearch() {
+  const q = state.search;
+  if (!state.deepSearch || !q || q.length < 2) {
+    state.deepResults = null;
+    renderSessionList();
+    return;
+  }
+  try {
+    const r = await fetch(API + "/search?q=" + encodeURIComponent(q) + "&limit=50");
+    if (!r.ok) throw new Error("search failed");
+    state.deepResults = await r.json();
+    renderSessionList();
+  } catch (e) {
+    toast("warn", "Deep search failed", String(e));
+  }
+}
+function highlight(text, q) {
+  if (!q) return [document.createTextNode(String(text))];
+  const re = new RegExp("(" + q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig");
+  return String(text).split(re).map(part =>
+    part && part.toLowerCase() === q.toLowerCase()
+      ? el("mark", { class: "search-hl" }, part)
+      : document.createTextNode(part)
+  );
+}
+function renderDeepResults() {
+  const root = $("session-list");
+  root.innerHTML = "";
+  const dr = state.deepResults;
+  if (!dr.results.length) {
+    root.appendChild(el("div", { class: "empty-state" },
+      el("span", { class: "big-icon" }, "🔬"),
+      `No matches for "${dr.query}" across ${dr.scanned || "all"} sessions.`));
+    return;
+  }
+  root.appendChild(el("div", { class: "hint" },
+    `🔬 ${dr.results.length} session${dr.results.length === 1 ? "" : "s"} matched "${dr.query}" (scanned ${dr.scanned})`));
+  for (const r of dr.results) {
+    const item = el("div", {
+      class: "session-item" + (r.session_id === state.selectedId ? " active" : ""),
+      onclick: () => {
+        selectSession(r.session_id);
+        if (r.hits[0] && r.hits[0].step_index != null) {
+          setTimeout(() => jumpToStep(r.session_id, r.hits[0].step_index), 350);
+        }
+      },
+    },
+      el("div", { class: "si-title" }, ...highlight(r.first_user_message || "(no user message)", dr.query)),
+      el("div", { class: "si-meta" },
+        el("span", { class: "ws", title: r.workspace?.label || "" }, r.workspace?.short || ""),
+        el("span", {}, fmtAgo(r.last_event_at)),
+        el("span", { class: "pill" }, `${r.match_count} hit${r.match_count === 1 ? "" : "s"}`),
+      ),
+    );
+    for (const h of r.hits) {
+      item.appendChild(el("div", { class: "search-snippet" },
+        el("span", { class: "snippet-tag " + h.kind }, h.tool_name || h.kind),
+        " ",
+        ...highlight(h.snippet, dr.query),
+      ));
+    }
+    root.appendChild(item);
+  }
+}
+
 let _lastSelectedSid = null;
 function toggleSelectSession(sid, isShift) {
   if (isShift && _lastSelectedSid) {
@@ -490,6 +567,11 @@ function renderDetail(d) {
         title: "Copy session id",
         onclick: (e) => copyToClipboard(d.session_id, e.currentTarget, "session id"),
       }, "⧉ id"),
+      el("button", {
+        class: "icon-btn",
+        title: "Generate a 'rehydrate' prompt summarizing this session — paste it into a fresh chat to bring a new agent up to speed.",
+        onclick: (e) => copyRehydrate(d.session_id, e.currentTarget),
+      }, "🔁 rehydrate"),
     ),
   );
   root.appendChild(head);
@@ -803,7 +885,20 @@ window.addEventListener("DOMContentLoaded", async () => {
     updateMuteWsButton();
   });
   $("search").addEventListener("input", e => {
-    state.search = e.target.value; renderSessionList();
+    state.search = e.target.value;
+    if (state.deepSearch) scheduleDeepSearch();
+    else renderSessionList();
+  });
+  $("deep-search").addEventListener("click", () => {
+    state.deepSearch = !state.deepSearch;
+    $("deep-search").classList.toggle("on", state.deepSearch);
+    if (state.deepSearch) {
+      if (state.search.length >= 2) runDeepSearch();
+      else toast("info", "Deep search on", "Type at least 2 characters in the search box.");
+    } else {
+      state.deepResults = null;
+      renderSessionList();
+    }
   });
   $("only-active").addEventListener("change", e => {
     state.onlyActive = e.target.checked; renderSessionList();
@@ -1235,3 +1330,15 @@ function updateFavicon(errCount) {
 
 // initial favicon (no alerts yet)
 updateFavicon(0);
+
+async function copyRehydrate(sid, btn) {
+  try {
+    const r = await fetch(API + "/session/" + encodeURIComponent(sid) + "/rehydrate");
+    if (!r.ok) throw new Error("rehydrate failed");
+    const d = await r.json();
+    await copyToClipboard(d.markdown, btn, "rehydrate prompt");
+    toast("info", "Rehydrate prompt copied", `${d.char_count} chars — paste into a fresh chat to continue this session.`);
+  } catch (e) {
+    toast("warn", "Could not generate rehydrate prompt", String(e));
+  }
+}
