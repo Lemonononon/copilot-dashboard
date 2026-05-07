@@ -1,0 +1,15 @@
+services:
+  copilot-dashboard:
+    build: .
+    image: copilot-dashboard:latest
+    container_name: copilot-dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8770:8770"
+    environment:
+      # Override if your VS Code data lives elsewhere (relative to /data).
+      CD_VSCODE_USER_DIR: /data/Code/User
+    volumes:
+      # Linux default. macOS:   ~/Library/Application Support/Code → /data/Code
+      # Windows (PowerShell):   ${APPDATA}\Code → /data/Code
+      - ${HOME}/.config/Code:/data/Code:ro

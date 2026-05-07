@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Copilot Dashboard</title>
+<link rel="stylesheet" href="/static/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <div class="brand-text">
+      <div class="brand-title">Copilot Dashboard</div>
+      <div class="brand-sub">live agent observability</div>
+    </div>
+    <span id="status-dot" class="status-dot" title="WebSocket"></span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="sessions">Sessions</button>
+    <button class="tab" data-tab="alerts">Alerts <span id="alert-badge" class="alert-badge" hidden>0</span></button>
+    <button class="tab" data-tab="stats">Stats</button>
+  </nav>
+  <div class="filters">
+    <select id="ws-filter" title="Filter by workspace">
+      <option value="">All workspaces</option>
+    </select>
+    <div class="search-wrap">
+      <span class="icon">⌕</span>
+      <input id="search" placeholder="search prompt / tool / reasoning…" />
+    </div>
+    <label class="check" title="Show only sessions where the agent is currently active">
+      <input type="checkbox" id="only-active"/>
+      <span>only active</span>
+    </label>
+    <button id="toggle-hidden" class="icon-btn toggle" type="button" hidden
+            title="Show or hide muted sessions (no Copilot files are deleted)">🚫 Show muted</button>
+    <button id="toggle-archived" class="icon-btn toggle" type="button" hidden
+            title="Browse archived sessions">📦 Archived</button>
+    <button id="toggle-select" class="icon-btn toggle" type="button"
+            title="Multi-select mode (M): click rows to select; bulk hide / archive / pin">☑ Select</button>
+    <button id="mute-workspace" class="icon-btn" type="button" hidden
+            title="Mute every session in the currently selected workspace">🔇 Mute WS</button>
+  </div>
+</header>
+
+<div id="bulk-bar" class="bulk-bar" hidden>
+  <span class="bulk-count">0 selected</span>
+  <span class="bulk-spacer"></span>
+  <button data-bulk="hide"      class="icon-btn">🚫 Hide</button>
+  <button data-bulk="unhide"    class="icon-btn">👁 Unhide</button>
+  <button data-bulk="archive"   class="icon-btn">📦 Archive</button>
+  <button data-bulk="unarchive" class="icon-btn">↩ Unarchive</button>
+  <button data-bulk="pin"       class="icon-btn">⭐ Pin</button>
+  <button data-bulk="unpin"     class="icon-btn">☆ Unpin</button>
+  <button data-bulk="dismiss"   class="icon-btn" hidden>✕ Dismiss alerts</button>
+  <button data-bulk="cancel"    class="icon-btn">Esc Clear</button>
+</div>
+
+<div id="live-strip" class="live-strip" hidden>
+  <div class="live-strip-inner"></div>
+</div>
+
+<main>
+  <section id="view-sessions" class="view active">
+    <aside id="session-list" class="session-list">
+      <div class="hint">Loading sessions…</div>
+    </aside>
+    <article id="session-detail" class="session-detail">
+      <div class="placeholder">
+        <div class="placeholder-icon">◐</div>
+        <div class="placeholder-text">Pick a session on the left.</div>
+      </div>
+    </article>
+  </section>
+
+  <section id="view-stats" class="view">
+    <div class="cards">
+      <div class="card"><div class="num" id="s-sessions">–</div><div class="label">Sessions</div></div>
+      <div class="card live-card"><div class="num" id="s-active">–</div><div class="label">In-progress</div></div>
+      <div class="card"><div class="num" id="s-tools">–</div><div class="label">Tool calls</div></div>
+      <div class="card warn-card"><div class="num" id="s-fail">–</div><div class="label">Failures</div></div>
+      <div class="card"><div class="num" id="s-sub">–</div><div class="label">Subagent calls</div></div>
+    </div>
+    <div class="charts">
+      <div id="chart-tools" class="chart"></div>
+      <div id="chart-dur" class="chart"></div>
+    </div>
+  </section>
+
+  <section id="view-alerts" class="view view-alerts">
+    <header class="alerts-head">
+      <div class="alerts-summary" id="alerts-summary">No alerts.</div>
+      <div class="alerts-filter">
+        <label class="seg"><input type="checkbox" data-sev="error" checked><span class="dot dot-error"></span>Error</label>
+        <label class="seg"><input type="checkbox" data-sev="warn" checked><span class="dot dot-warn"></span>Warn</label>
+        <label class="seg"><input type="checkbox" data-sev="info" checked><span class="dot dot-info"></span>Info</label>
+      </div>
+    </header>
+    <div class="alerts-list" id="alerts-list"></div>
+  </section>
+</main>
+<div id="toast-host" class="toast-host" aria-live="polite"></div>
+</body>
+</html>

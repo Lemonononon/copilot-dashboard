@@ -1,0 +1,21 @@
+[project]
+name = "copilot-dashboard"
+version = "0.1.0"
+description = "Local dashboard for inspecting GitHub Copilot agent sessions, tool calls, decisions and live progress."
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "watchdog>=4.0",
+    "pydantic>=2.6",
+]
+
+[project.scripts]
+copilot-dashboard = "copilot_dashboard.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["server"]
